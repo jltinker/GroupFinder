@@ -1,0 +1,76 @@
+GRoups can be found here:
+
+http://cosmo.nyu.edu/~tinker/GROUP_FINDER/STELLAR_MASS/
+
+where the files have names like clf_groups_MXX_XX.X_D360.[groups/prob/galdata_corr]
+
+where MXX is the magnitude limit (ie, without the negative sign-- 18,
+19, 20), XX.X is the stellar mass limit at the redshift defined by the
+magnitude limit (ie, 9.4, 9.8, 10.2-- all h=1 units), and D360 is the
+overdensity of the halo definition (with respect to the mean). These
+are the same catalogs used in Reddick et al. You can find a plot of
+the cuts in magnitude/stellar mass in Tinker, Wetzel, Conroy (fig 1;
+although those catalogs are slightly different, the cuts are the
+same).
+
+The format of the files is totally kludgy-- I didn't really think
+about having other people use them when I was first testing the code,
+and when I got something that worked I didn't want to touch
+it. Anyway,
+
+*.groups is the group catalog itself; properties of each group. The
+ format
+
+
+1) foo
+2) group id
+3) gal id (for the central)
+4) group mass 
+5) group mass in the previous iteration of the finder (should be same). not relevant for you.
+6) number of satellites
+7) total group stellar mass
+8) stellar mass of central
+9) foo
+10) ra (radians) of central 
+11) dec of central
+12) cz of central (km/s)
+13) foo
+14) foo
+
+*.prob is the galaxy catalog with probability of being a satellite
+ (official stats assume >0.5 is a satellite).
+
+
+1) foo
+2) gal id
+3) group id
+4) id of central galaxy
+5) r-band magnitude h=1
+6) P_sat (>0.5 means a satellite)
+7) halo mass [Msol/h]
+8) foo
+9) foo
+10) foo
+11) projected separation of gal from central, in units of Rhalo
+12) projected separation of gal in units of radians
+13) angular radius of halo
+
+*.galdata_corr are galaxy properties. This file is in the same order
+ as the *.prob file
+
+1) foo
+2) gal id
+3) M_r
+4) M_g
+5) cz [km/s]
+6) Dn4000  (from MPA/JHU catalog)
+7) H_delta EW (same source)
+8) log sSFR (1/yr same source, but uses kcorrect stellar mass for "s")
+9) stellar mass (Msol/h^2, from kcorrect)
+10) ra
+11) dec
+12) velocity dispersion (from VAGC)
+13) signal to noise of spectrum (from VAGC)
+14) sersic index (from VAGC) 
+
+Unless I have said so, all units are h=1. 
