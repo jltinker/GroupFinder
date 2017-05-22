@@ -22,9 +22,9 @@
 
 #define CZMIN 000.0
 #define CZBUF 0
-#define BOXSIZE 250.0
+#define BOXSIZE 480.0
 #define REDSHIFT (BOXSIZE*100.0/SPEED_OF_LIGHT)// -20
-#define MAGNITUDE -18
+#define MAGNITUDE 0
 
 //numerical recipes
 float qromo(float (*func)(float), float a, float b,
@@ -101,7 +101,9 @@ int main(int argc, char **argv)
   //  fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/NOV2010_NBODY_MOCKS/sub_250_1_mstel9_sc0.15_mf0.007.txt");
   nheader=0;
   //ngal = filesize(fp)-nheader;
-  fp = openfile("Mr19_mock_reformatted.dat");
+  //fp = openfile("Mr19_mock_reformatted.dat");
+  //fp = openfile("umachine_mock_for_jt.dat");
+  fp = openfile("finder_input_3e9.dat");
   ngal = filesize(fp);
 
   ra = vector(1,ngal);
@@ -142,9 +144,10 @@ int main(int argc, char **argv)
       redshift[i] *= 100.0;
       indx[i] = i;
       subid[i] = j;
-      luminosity[i] = pow(10.0,-0.4*(mag_r[i]+20.44));
-      //luminosity[i] = mag_r[i];
-      //mag_r[i] = -mag_r[i];
+      // in the universe mock, mag_r is linear stellar mass
+      //luminosity[i] = pow(10.0,-0.4*(mag_r[i]+20.44));
+      luminosity[i] = mag_r[i];
+      mag_r[i] = -mag_r[i];
       fgets(aa,1000,fp);      
     }
   fclose(fp);
