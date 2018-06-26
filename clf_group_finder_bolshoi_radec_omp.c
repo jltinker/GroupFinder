@@ -30,6 +30,9 @@
 //#define REDSHIFT (31000.0/SPEED_OF_LIGHT)// -20
 //#define MAGNITUDE -20.0
 
+#define angular_separationx(a1,d1,a2,d2) atan((sqrt(cos(d2)*cos(d2)*sin(a2-a1)*sin(a2-a1) + pow(cos(d1)*sin(d2) - sin(d1)*cos(d2)*cos(a2-a1),2.0)))/(sin(d1)*sin(d2) + cos(d1)*cos(d2)*cos(a2-a1)))
+
+
 float REDSHIFT, MAGNITUDE;
 int PROBLIM=10;
 
@@ -98,9 +101,11 @@ int main(int argc, char **argv)
   int id;
 
   
+  #pragma omp parallel 
+  {
   id = omp_get_thread_num();
   fprintf(stderr,"thread ID: %d %d\n",id,omp_get_num_threads());
-
+  }
 
   REDSHIFT = 18900;
   MAGNITUDE = -19;
@@ -197,6 +202,9 @@ int main(int argc, char **argv)
     {
       if(!(mag_r[i]>MAGNITUDE || redshift[i]>REDSHIFT*SPEED_OF_LIGHT || redshift[i]<CZMIN))
 	printf("INDX %d %f %f %f %f %f %f\n",i,ra[i],dec[i],redshift[i]/SPEED_OF_LIGHT,mag_r[i],mag_r[i],s2n[i]);
+      printf("PROB0 %d %d %d %e %e %e %e %e %e %e %e %e %e\n",i,0,0,mag_r[i],
+	     0.0,0.0,0.0,0.0,nsat_indi[j],theta/ang_rad[j],theta,ang_rad[j],s2n[i]);
+
     }
   fflush(stdout);
   fprintf(stderr,"Done with galdata\n");
@@ -557,22 +565,22 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 		      float x1, int *group_member, int *indx, int ngal, float radius, float mass, 
 		      int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total)
 {
-  int j, j1, id;
+  int j, j1, id, nstep;
   float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0, p0_central;
   double nsat_cur1;
   static int flag = 1;
 
-#pragma omp parallel private (id, j1, j, dx, dy, dz, x1, theta, prob_ang, prob_rad, p0, grp_lum, nsat_cur1) \
+#pragma omp parallel private (id, j1, j, dx, dy, dz, theta, prob_ang, prob_rad, p0) \
   reduction (+:grp_lum, nsat_cur1)
   {
-    if(flag){
       id = omp_get_thread_num();
-      fprintf(stderr,"thread ID: %d %d\n",id,omp_get_num_threads());}
+      nstep = omp_get_num_threads();
+    if(flag){
+      fprintf(stderr,"thread ID: %d %d %d %d\n",id,omp_get_num_threads(), ngal, nstep);}
 
     grp_lum = 0;
     nsat_cur1 = 0;
-#pragma omp parallel for
-  for(j1=1;j1<=ngal;++j1)
+  for(j1=1+id;j1<=ngal;j1+=nstep)
     {
       j = indx[j1];
       if(j==i)continue;
@@ -589,12 +597,14 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
       if(dz>6*x1)continue;
             
       theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+
       if(theta>theta_max)continue;
       
       prob_ang = radial_probability(mass,theta,radius,theta_max);
       prob_rad = exp(-dz*dz/(2*x1*x1))*SPEED_OF_LIGHT/(RT2PI*x1);
       
-      //   fprintf(stdout,"ACK here %d %e %e %e %e %e %e\n",j, dz/x1,theta/theta_max,prob_ang, prob_rad, prob_ang*prob_rad, x1);
+      //fprintf(stdout,"ACK here %d %e %e %e %e %e %e %e\n",j, dz/x1,theta,theta_max,prob_ang, prob_rad, prob_ang*prob_rad, x1);
+      //fprintf(stdout,"ACK2 %f %f %f %f\n",ra[i],dec[i],ra[j],dec[j]);
       //if(prob_ang*prob_rad<10)continue;
 
       p0 = (1 - 1/(1+prob_ang*prob_rad/PROBLIM));
@@ -607,11 +617,11 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
       grp_lum += luminosity[j];
       nsat_cur1+=1;
 
-      if(igrp==2)printf("BUH %d %f %f %f\n",j,mag_r[j1],redshift[j],CZMIN);
-
     }
-
+  //fprintf(stderr,"%d %e %e\n",id,nsat_cur1, grp_lum);
   }
+  //fprintf(stderr,"%d %d %e %e\n",id, i, nsat_cur1, grp_lum);
+
 
   *nsat_cur = nsat_cur1;
 

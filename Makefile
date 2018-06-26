@@ -1,10 +1,11 @@
 hd = $(HOME)/cosmo/lib
+hd = $(HOME)/lib
 LIB = -lm -fopenmp -L${hd} -lcutil 
 
 
-#CC = gcc
-CC = clang
-CFLAGS = -O2
+CC = gcc
+#CC = clang
+CFLAGS = -O2 -fopenmp
 
 
 OBJS10 = cen_sat_decomp.o spline.o splint.o qromo.o midpnt.o polint.o sort2.o sham.o zbrent.o \

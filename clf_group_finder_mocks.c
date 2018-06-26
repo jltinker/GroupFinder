@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <omp.h>
 #include "nrutil.h"
 
 #define OMEGA_M 0.25
@@ -22,9 +23,10 @@
 
 #define CZMIN 000.0
 #define CZBUF 0
-#define BOXSIZE 480.0
+#define BOXSIZE 1000.0
 #define REDSHIFT (BOXSIZE*100.0/SPEED_OF_LIGHT)// -20
 #define MAGNITUDE 0
+#define PROBLIM 10.0
 
 //numerical recipes
 float qromo(float (*func)(float), float a, float b,
@@ -90,11 +92,14 @@ int main(int argc, char **argv)
   float *H_delta, *Dn4k, *SFR;
   
   float vz, hostmass;
-  int icen, *subid;
+  int icen, *subid, id;
 
 
+  #pragma omp parallel 
+  {
   id = omp_get_thread_num();
   fprintf(stderr,"thread ID: %d %d\n",id,omp_get_num_threads());
+  }
 
 
   for(i=0;i<160;++i)
@@ -108,7 +113,9 @@ int main(int argc, char **argv)
   //ngal = filesize(fp)-nheader;
   //fp = openfile("Mr19_mock_reformatted.dat");
   //fp = openfile("umachine_mock_for_jt.dat");
-  fp = openfile("finder_input_3e9.dat");
+  //fp = openfile("finder_input_3e9.dat");
+  //fp = openfile("input_catalog_shuffle_3e9.dat");
+  fp = openfile("input_UM_MDPL_z0.36.dat");
   ngal = filesize(fp);
 
   ra = vector(1,ngal);
@@ -513,12 +520,96 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 		      float x1, int *group_member, int *indx, int ngal, float radius, float mass, 
 		      int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total)
 {
+  int j, j1, id, nstep;
+  float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0, p0_central;
+  double nsat_cur1;
+  static int flag = 1;
+
+#pragma omp parallel private (id, j1, j, dx, dy, dz, theta, prob_ang, prob_rad, p0) \
+  reduction (+:grp_lum, nsat_cur1)
+  {
+      id = omp_get_thread_num();
+      nstep = omp_get_num_threads();
+    if(flag){
+      fprintf(stderr,"thread ID: %d %d %d %d\n",id,omp_get_num_threads(), ngal, nstep);}
+
+    grp_lum = 0;
+    nsat_cur1 = 0;
+  for(j1=1+id;j1<=ngal;j1+=nstep)
+    {
+      j = indx[j1];
+      if(j==i)continue;
+      if(redshift[j]>REDSHIFT*SPEED_OF_LIGHT || mag_r[j1]>MAGNITUDE || redshift[j]<CZMIN)continue;
+      
+      //if already in group, skip
+      if(group_member[j])continue;
+
+      dx = fabs(ra[i]-ra[j]);
+      if(dx>2*theta_max)continue;
+      dy = fabs(dec[i]-dec[j]);
+      if(dy>2*theta_max)continue;
+      dz = fabs(redshift[i] - redshift[j]);
+      if(dz>REDSHIFT/2)dz = REDSHIFT-dz;
+      if(dz>6*x1)continue;
+            
+      //theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+      theta = sqrt(dx*dx+dy*dy);
+      if(theta>theta_max)continue;
+      
+      prob_ang = radial_probability(mass,theta,radius,theta_max);
+      prob_rad = exp(-dz*dz/(2*x1*x1))*SPEED_OF_LIGHT/(RT2PI*x1);
+
+      //fprintf(stdout,"ACK here %d %e %e %e %e %e %e %e\n",j, dz/x1,theta,theta_max,prob_ang, prob_rad, prob_ang*prob_rad, x1);
+      //fprintf(stdout,"ACK2 %f %f %f %f\n",ra[i],dec[i],ra[j],dec[j]);
+      //if(prob_ang*prob_rad<10)continue;
+
+      p0 = (1 - 1/(1+prob_ang*prob_rad/PROBLIM));
+      prob_total[j] += p0;
+      if(prob_total[j]>1)prob_total[j] = 1;
+
+      if(prob_ang*prob_rad<PROBLIM)continue;
+      group_member[j] =igrp;
+
+      grp_lum += luminosity[j];
+      nsat_cur1+=1;
+
+    }
+  //fprintf(stderr,"%d %e %e\n",id,nsat_cur1, grp_lum);
+  }
+  //fprintf(stderr,"%d %d %e %e\n",id, i, nsat_cur1, grp_lum);
+
+
+  *nsat_cur = nsat_cur1;
+
+  dz = fabs(redshift[i]-CZMIN);
+  vol_corr = 1-0.5*erfc(dz/(ROOT2*x1));
+  *nsat_cur/= vol_corr;
+  grp_lum/=vol_corr;
+  dz = fabs(redshift[i]-REDSHIFT);
+  vol_corr = 1-0.5*erfc(dz/(ROOT2*x1));
+  *nsat_cur/= vol_corr;
+  grp_lum/= vol_corr;
+  flag = 0;
+
+  return grp_lum;
+}
+
+
+/******************************************
+ * go through the list of galaxies find satellites for the
+ * current central
+ */
+
+float find_satellites3(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, 
+		      float x1, int *group_member, int *indx, int ngal, float radius, float mass, 
+		      int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total)
+{
   int j, j1, id;
   float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0, p0_central;
   double nsat_cur1;
   static int flag = 1;
 
-#pragma omp parallel private (id, j1, j, dx, dy, dz, x1, theta, prob_ang, prob_rad, p0, grp_lum, nsat_cur1) \
+#pragma omp parallel private (id, j1, j, dx, dy, dz, theta, prob_ang, prob_rad, p0) \
   reduction (+:grp_lum, nsat_cur1)
   {
     if(flag){
