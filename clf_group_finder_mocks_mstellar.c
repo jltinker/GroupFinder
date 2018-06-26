@@ -94,7 +94,7 @@ int main(int argc, char **argv)
   float *H_delta, *Dn4k, *SFR;
   
   float vz, hostmass,vfac;
-  int icen, *subid, NHEADER=0;
+  int icen, *subid, NHEADER=0, flag1 = 1;
 
   for(i=0;i<160;++i)
     nsat[i] = nhalo[i] = mbar[i] = nsub[i] = mbars[i] = 0;
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
   //fp = openfile("mufasa_input2.dat");
   if(argc<3)
     {
-      fprintf(stderr,"clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] [niter_max] > out\n");
+      fprintf(stderr,"clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] [niter_max] [NHEADER]> out\n");
       exit(0);
     }
 
@@ -117,6 +117,11 @@ int main(int argc, char **argv)
   REDSHIFT = BOXSIZE*100.0/SPEED_OF_LIGHT;
   if(argc>3)
     vfac = atof(argv[3]);
+  if(argc>4)
+    niter_max = atoi(argv[4]);
+  if(argc>5)
+    NHEADER = atoi(argv[5]);
+
   ngal = filesize(fp)-NHEADER;
 
   ra = vector(1,ngal);
@@ -165,8 +170,21 @@ int main(int argc, char **argv)
       redshift[i] *= 100.0;
       indx[i] = i;
       subid[i] = i; // NB: this was j!!
-      mag_r[i] = -1*mstar[i];
-      luminosity[i] = pow(10.0,mstar[i]);
+      if(mstar[1]<13)
+	{
+	  if(flag1) fprintf(stderr,"Assuming masses are log10...\n\n");
+	  flag1 = 0;
+	  mag_r[i] = -1*mstar[i];
+	  luminosity[i] = pow(10.0,mstar[i]);
+	}
+      else
+	{
+	  if(flag1) fprintf(stderr,"Assuming masses are linear (ie, not log10)...\n\n");
+	  flag1 = 0;
+	  mag_r[i] = -1*log10(mstar[i]);
+	  luminosity[i] = mstar[i];
+	}
+
       //printf("%d %f %f\n",j,mstar[i],mag_r[i]);
       fgets(aa,1000,fp);      
     }
@@ -196,7 +214,7 @@ int main(int argc, char **argv)
   j = 0;
   k=0;
   volume = BOXSIZE*BOXSIZE*BOXSIZE*vfac;
-  fprintf(stderr,"volume= %f %f\n",volume, pow(volume, 0.3333));
+  fprintf(stderr,"volume= %f %f\n",volume, pow(volume, 0.33333333));
   for(i1=1;i1<=ngal;++i1)
     {
       //printf("%d %f %f %f %f\n",i, mag_r[i1], mstar[i1], MAGNITUDE, MSTAR);
