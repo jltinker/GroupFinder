@@ -1,3 +1,29 @@
+Using the code clf_group_finder_mocks_mstellar.
+
+carmichael:GroupFinder tinker$ clf_group_finder_mocks_mstellar 
+clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] [niter_max] [NHEADER]> out
+
+inputfile: is the ascii-formatted input file. columns need to be:
+ 1) x
+ 2) y
+ 3) z (all Mpc/h comoving)
+ 4) vx
+ 5) vy
+ 6) vz [km/s]
+ 7) M_stellar 
+ 
+BOXSIZE - comoving Mpc/h
+vfac - SET TO UNITY (1). 
+niter_max - number of iterations for the group finder. default is 10. 
+NHEADER - number of header lines in the inputfile. default is 0.
+ 
+Notes: 
+ - the z-axis is assumed to be the line of sight.
+ - if the first stellar mass is <13, then the masses are assumed to be in log10 units. 
+ - if all you're interested in is to get centrals, then you only need niter_max=2.
+
+----------------------------------
+
 GRoups can be found here:
 
 http://cosmo.nyu.edu/~tinker/GROUP_FINDER/STELLAR_MASS/
