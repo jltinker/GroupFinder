@@ -108,7 +108,7 @@ int main(int argc, char **argv)
   //fp = openfile("mufasa_input2.dat");
   if(argc<3)
     {
-      fprintf(stderr,"clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] > out\n");
+      fprintf(stderr,"clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] [niter_max] > out\n");
       exit(0);
     }
 
