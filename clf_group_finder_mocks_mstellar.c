@@ -22,10 +22,11 @@
 
 #define CZMIN 000.0
 #define CZBUF 0
-#define BOXSIZE 250.0
-#define REDSHIFT (BOXSIZE*100.0/SPEED_OF_LIGHT)// -20
+// #define BOXSIZE 50.00 //MUFASA
+//#define BOXSIZE 67.77 //EAGLE
+//#define REDSHIFT (BOXSIZE*100.0/SPEED_OF_LIGHT)// -20
 #define MAGNITUDE -1
-#define MSTAR 9.4
+#define MSTAR 0.4
 
 //numerical recipes
 float qromo(float (*func)(float), float a, float b,
@@ -65,6 +66,7 @@ int central_galaxy(int i, float *ra, float *dec, float *redshift, float *mag_r, 
 // global
 float GALAXY_DENSITY;
 float LUMINOSITY;
+double BOXSIZE=0, REDSHIFT;
 
 int main(int argc, char **argv)
 {
@@ -91,8 +93,8 @@ int main(int argc, char **argv)
 
   float *H_delta, *Dn4k, *SFR;
   
-  float vz, hostmass;
-  int icen, *subid, NHEADER=8;
+  float vz, hostmass,vfac;
+  int icen, *subid, NHEADER=0;
 
   for(i=0;i<160;++i)
     nsat[i] = nhalo[i] = mbar[i] = nsub[i] = mbars[i] = 0;
@@ -100,9 +102,21 @@ int main(int argc, char **argv)
   //read in all the galaxies from the VAGC
   //fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/MAY2010_NBODY_MOCKS/SCAT/subhalo_neig_250_mr19.0_sc0.15.txt");
   //  fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/JULY2010_NBODY_MOCKS/sub_neig_250_2_mr19_sc0.15_mf007.txt");
-  fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/NOV2010_NBODY_MOCKS/sub_250_1_mstel9_sc0.15_mf0.007.txt");
+  //fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/NOV2010_NBODY_MOCKS/sub_250_1_mstel9_sc0.15_mf0.007.txt");
   //fp = openfile("/Users/tinker/cosmo/CENSAT_DECOMP/JAN2013_NBODY_MOCKS/subhalo_250_o1_m-star8.5_sc2_mf007.txt");
   //NHEADER = 0;
+  //fp = openfile("mufasa_input2.dat");
+  if(argc<3)
+    {
+      fprintf(stderr,"clf_group_finder_mocks_mstellar inputfile BOXSIZE [vfac] > out\n");
+      exit(0);
+    }
+
+  fp = openfile(argv[1]);
+  BOXSIZE = atof(argv[2]);
+  REDSHIFT = BOXSIZE*100.0/SPEED_OF_LIGHT;
+  if(argc>3)
+    vfac = atof(argv[3]);
   ngal = filesize(fp)-NHEADER;
 
   ra = vector(1,ngal);
@@ -129,12 +143,18 @@ int main(int argc, char **argv)
   for(i=1;i<=NHEADER;++i)
     fgets(aa,1000,fp);
 
+  // NB input assumes log10(Mstar)
   for(i=1;i<=ngal;++i) 
     {
+      // read in for EAGLE
+      fscanf(fp,"%f %f %f %f %f %f %f",
+      	     &ra[i],&dec[i],&redshift[i],&x1,&x1,&vz,&mstar[i]);
+      
       // old read in 
-      fscanf(fp,"%f %f %f %f %f %f %f %f %f %d %f %d %f %d %d",
-      	     &ra[i],&dec[i],&redshift[i],&x1,&x1,&vz,&x1,&mag_r[i],&mstar[i],&icen,&x1,&idum,
-           &hostmass,&idum,&j);
+      //fscanf(fp,"%f %f %f %f %f %f %f %f %f %d %f %d %f %d %d",
+      //	     &ra[i],&dec[i],&redshift[i],&x1,&x1,&vz,&x1,&mag_r[i],&mstar[i],&icen,&x1,&idum,
+	//    &hostmass,&idum,&j);
+
       // read in for the Jan2013 mocks
       //fscanf(fp,"%f %f %f %f %f %f %f %f %d",
       //	     &ra[i],&dec[i],&redshift[i],&x1,&x1,&vz,&mstar[i],&hostmass,&j);
@@ -144,7 +164,7 @@ int main(int argc, char **argv)
       if(redshift[i]<0)redshift[i]+=BOXSIZE;
       redshift[i] *= 100.0;
       indx[i] = i;
-      subid[i] = j;
+      subid[i] = i; // NB: this was j!!
       mag_r[i] = -1*mstar[i];
       luminosity[i] = pow(10.0,mstar[i]);
       //printf("%d %f %f\n",j,mstar[i],mag_r[i]);
@@ -175,9 +195,11 @@ int main(int argc, char **argv)
   // set up the mass/radius of each galaxy
   j = 0;
   k=0;
-  volume = BOXSIZE*BOXSIZE*BOXSIZE;
+  volume = BOXSIZE*BOXSIZE*BOXSIZE*vfac;
+  fprintf(stderr,"volume= %f %f\n",volume, pow(volume, 0.3333));
   for(i1=1;i1<=ngal;++i1)
     {
+      //printf("%d %f %f %f %f\n",i, mag_r[i1], mstar[i1], MAGNITUDE, MSTAR);
       i = indx[i1];
       if(mag_r[i1]>MAGNITUDE || redshift[indx[i1]]>REDSHIFT*SPEED_OF_LIGHT || redshift[indx[i1]]<CZMIN
 	 || mstar[i1]<MSTAR)
@@ -190,7 +212,7 @@ int main(int argc, char **argv)
       sigma[i] = sqrt(BIG_G*mass[i]/2.0/rad[i]);
     }
   fprintf(stderr,"Done SHAMming the galaxies\n");
-  fprintf(stderr,"Number density: %d %e\n",j,j/volume);
+  fprintf(stderr,"Number density: %d %e %d\n",j,j/volume,ngal);
 
 
 
